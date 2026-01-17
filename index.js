@@ -54,8 +54,22 @@ app.get('/job-application' , async(req , res)=>{
   const email = req.query.email;
   const query = {applicant_email: email};
   const result = await jobApplicationCollection.find(query).toArray();
+
+  // aggregate data - just to understanding the logic. But it is not the best practice
+  for(const application of result){
+    const query1 = {_id: new ObjectId(application.job_id)};
+    const job = await jobsCollection.findOne(query1);
+    if(job){
+      application.title = job.title;
+      application.company = job.company;
+      application.company_logo = job.company_logo;
+      application.location = job.location;
+
+    }
+  }
+  
   res.send(result);
-})
+});
 
 
 app.post('/job-applications' , async(req , res)=>{
@@ -65,12 +79,12 @@ app.post('/job-applications' , async(req , res)=>{
 });
 
 
-
-
-
-
-
-
+// Delete a job application
+app.delete('/jobs/:id' , async(req , res)=>{
+  const application = req.body;
+  const deleteApplication = await jobApplicationCollection.deleteOne(application);
+  res.send(deleteApplication);
+});
 
 
   } finally {
@@ -88,5 +102,3 @@ app.get('/' , (req , res)=>{
 app.listen(port , ()=>{
     console.log(`Job portal is running for job seekers on port: ${port}`);
 })
-
-
