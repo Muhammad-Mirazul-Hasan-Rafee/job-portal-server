@@ -1,14 +1,12 @@
-const express = require('express');
-const cors = require('cors');
+const express = require("express");
+const cors = require("cors");
 const app = express();
 const port = process.env.PORT || 3000;
-const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
-require('dotenv').config();
+const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
+require("dotenv").config();
 
 app.use(cors());
 app.use(express.json());
-
-
 
 const uri = `mongodb+srv://${process.env.nameDb}:${process.env.entryDb}@cluster0.vhv77.mongodb.net/?appName=Cluster0`;
 
@@ -18,7 +16,7 @@ const client = new MongoClient(uri, {
     version: ServerApiVersion.v1,
     strict: true,
     deprecationErrors: true,
-  }
+  },
 });
 
 async function run() {
@@ -27,87 +25,93 @@ async function run() {
     await client.connect();
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
-    console.log("Pinged your deployment. You successfully connected to MongoDB!");
-
+    console.log(
+      "Pinged your deployment. You successfully connected to MongoDB!"
+    );
 
     // job related api
-    const jobsCollection = client.db('jobPortal').collection('jobs');
-    const jobApplicationCollection = client.db('jobPortal').collection('job_applications');
+    const jobsCollection = client.db("jobPortal").collection("jobs");
+    const jobApplicationCollection = client
+      .db("jobPortal")
+      .collection("job_applications");
 
+    // job related APIs
+    app.get("/jobs", async (req, res) => {
+      const email = req.query.email;
+      let query = {};
+      if (email) {
+        query = {
+          hr_email: email
+        }
+      }
 
-      // job related api
-    app.get('/jobs' , async(req , res)=>{
-        const cursor = jobsCollection.find();
-        const result = await cursor.toArray();
-        res.send(result);
+      const cursor = jobsCollection.find(query);
+      const result = await cursor.toArray();
+      res.send(result);
     });
 
     // specific job data need to be loaded
- app.get('/jobs/:id' , async (req , res)=>{
-  const id = req.params.id;
-  const query = {_id: new ObjectId(id)};
-  const result = await jobsCollection.findOne(query);
-  res.send(result);
- });
+    app.get("/jobs/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await jobsCollection.findOne(query);
+      res.send(result);
+    });
 
-//  specific job create
-app.post('/jobs' , async(req , res)=>{
-const newJob = req.body;
-const result = await jobsCollection.insertOne(newJob);
-res.send(result);
-});
+    //  ...........................job application apis...........................................
 
-//  job application apis
+    app.get("/job-application", async (req, res) => {
+      const email = req.query.email;
+      const query = { applicant_email: email };
+      const result = await jobApplicationCollection.find(query).toArray();
 
-app.get('/job-application' , async(req , res)=>{
-  const email = req.query.email;
-  const query = {applicant_email: email};
-  const result = await jobApplicationCollection.find(query).toArray();
+      // aggregate data - just to understanding the logic. But it is not the best practice
+      for (const application of result) {
+        const query1 = { _id: new ObjectId(application.job_id) };
+        const job = await jobsCollection.findOne(query1);
+        if (job) {
+          application.title = job.title;
+          application.company = job.company;
+          application.company_logo = job.company_logo;
+          application.location = job.location;
+        }
+      }
 
-  // aggregate data - just to understanding the logic. But it is not the best practice
-  for(const application of result){
-    const query1 = {_id: new ObjectId(application.job_id)};
-    const job = await jobsCollection.findOne(query1);
-    if(job){
-      application.title = job.title;
-      application.company = job.company;
-      application.company_logo = job.company_logo;
-      application.location = job.location;
+      res.send(result);
+    });
 
-    }
-  }
-  
-  res.send(result);
-});
+    app.post("/job-applications", async (req, res) => {
+      const application = req.body;
+      const result = await jobApplicationCollection.insertOne(application);
+      res.send(result);
+    });
 
+    //  specific job create
+    app.post("/jobs", async (req, res) => {
+      const newJob = req.body;
+      const result = await jobsCollection.insertOne(newJob);
+      res.send(result);
+    });
 
-app.post('/job-applications' , async(req , res)=>{
-  const application = req.body;
-  const result = await jobApplicationCollection.insertOne(application);
-  res.send(result);
-});
-
-
-// Delete a job application
-app.delete('/jobs/:id' , async(req , res)=>{
-  const application = req.body;
-  const deleteApplication = await jobApplicationCollection.deleteOne(application);
-  res.send(deleteApplication);
-});
-
-
+    // Delete a job application
+    app.delete("/jobs/:id", async (req, res) => {
+      const application = req.body;
+      const deleteApplication = await jobApplicationCollection.deleteOne(
+        application
+      );
+      res.send(deleteApplication);
+    });
   } finally {
     // Ensures that the client will close when you finish/error
-   // await client.close();
+    // await client.close();
   }
 }
 run().catch(console.dir);
 
+app.get("/", (req, res) => {
+  res.send("Job applications are being taken!");
+});
 
-app.get('/' , (req , res)=>{
-    res.send('Job applications are being taken!');
-})
-
-app.listen(port , ()=>{
-    console.log(`Job portal is running for job seekers on port: ${port}`);
-})
+app.listen(port, () => {
+  console.log(`Job portal is running for job seekers on port: ${port}`);
+});
