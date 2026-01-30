@@ -86,8 +86,6 @@ async function run() {
       const result = await jobApplicationCollection.find(query).toArray();
       res.send(result);
     }); 
-// 59_5-7 
-
 
     app.post("/job-applications", async (req, res) => {
       const application = req.body;
@@ -115,6 +113,18 @@ async function run() {
     app.post("/jobs", async (req, res) => {
       const newJob = req.body;
       const result = await jobsCollection.insertOne(newJob);
+      res.send(result);
+    });
+
+    // partial update
+    app.patch('/job-applications/:id' , async(req , res)=>{
+      const id = req.params.id;
+      const data = req.body;
+      const filter = {_id: new ObjectId(id)};
+      const updatedDoc = {
+        $set:{status: data.status}
+      }
+      const result = await jobApplicationCollection.updateOne(filter , updatedDoc);
       res.send(result);
     });
 
